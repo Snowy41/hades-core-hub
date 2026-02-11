@@ -1,0 +1,91 @@
+import { motion } from "framer-motion";
+import { Ghost, Shield, Zap, Eye, Layers, Settings } from "lucide-react";
+
+const features = [
+  {
+    icon: Ghost,
+    title: "Ghost Injection",
+    description: "Seamless injection that leaves zero traces. Completely invisible to anti-cheat systems.",
+  },
+  {
+    icon: Shield,
+    title: "Bypass Engine",
+    description: "Advanced bypass technology for all major anti-cheat systems including Watchdog & Vulcan.",
+  },
+  {
+    icon: Zap,
+    title: "Lightning Fast",
+    description: "Optimized for minimal performance impact. No FPS drops, no lag spikes.",
+  },
+  {
+    icon: Eye,
+    title: "Stealth Mode",
+    description: "Render yourself invisible to screenshare tools and recording software.",
+  },
+  {
+    icon: Layers,
+    title: "Module System",
+    description: "Over 100+ modules with deep customization. Build your perfect setup.",
+  },
+  {
+    icon: Settings,
+    title: "Config System",
+    description: "Import, export, and share configs. Browse community configs on our marketplace.",
+  },
+];
+
+const container = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.1 } },
+};
+
+const item = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+};
+
+const FeaturesSection = () => {
+  return (
+    <section className="py-24 relative">
+      <div className="container mx-auto px-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="text-center mb-16"
+        >
+          <h2 className="font-display text-3xl sm:text-4xl font-bold mb-4">
+            Why <span className="gradient-hades-text">HADES</span>?
+          </h2>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            Built from the ground up for stealth and performance.
+          </p>
+        </motion.div>
+
+        <motion.div
+          variants={container}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true }}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+        >
+          {features.map((f) => (
+            <motion.div
+              key={f.title}
+              variants={item}
+              className="group glass rounded-xl p-6 hover:border-primary/30 transition-all duration-300 hover:glow-orange"
+            >
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
+                <f.icon className="h-5 w-5 text-primary" />
+              </div>
+              <h3 className="font-display text-sm font-semibold mb-2 tracking-wide">{f.title}</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">{f.description}</p>
+            </motion.div>
+          ))}
+        </motion.div>
+      </div>
+    </section>
+  );
+};
+
+export default FeaturesSection;
