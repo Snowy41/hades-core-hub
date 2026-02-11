@@ -1,0 +1,88 @@
+import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { ChevronRight, Download } from "lucide-react";
+
+const HeroSection = () => {
+  return (
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
+      {/* Background effects */}
+      <div className="absolute inset-0">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-primary/5 blur-[120px] animate-pulse-glow" />
+        <div className="absolute bottom-1/4 left-1/4 w-[400px] h-[400px] rounded-full bg-accent/5 blur-[100px] animate-pulse-glow" style={{ animationDelay: "1.5s" }} />
+        {/* Grid pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: "linear-gradient(hsl(var(--foreground)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)",
+            backgroundSize: "60px 60px",
+          }}
+        />
+      </div>
+
+      <div className="container relative z-10 mx-auto px-4 text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+        >
+          {/* Badge */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2 }}
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass text-xs font-medium text-primary mb-8"
+          >
+            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            Ghost Injection • Undetected
+          </motion.div>
+
+          {/* Title */}
+          <h1 className="font-display text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-black tracking-tight mb-6">
+            <span className="gradient-hades-text glow-text">HADES</span>
+          </h1>
+
+          <p className="max-w-xl mx-auto text-lg sm:text-xl text-muted-foreground mb-10 leading-relaxed">
+            The most advanced ghost injection client for Minecraft.
+            <br className="hidden sm:block" />
+            Dominate every server. Stay invisible.
+          </p>
+
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link to="/download">
+              <Button size="lg" className="gradient-hades glow-orange font-display font-semibold text-sm tracking-wider px-8 h-12">
+                <Download className="h-4 w-4 mr-2" />
+                Download Now
+              </Button>
+            </Link>
+            <Link to="/marketplace">
+              <Button size="lg" variant="outline" className="font-display font-semibold text-sm tracking-wider px-8 h-12 border-border/50 hover:border-primary/50 hover:bg-primary/5">
+                Explore Configs
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </Link>
+          </div>
+        </motion.div>
+
+        {/* Floating decoration */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1, duration: 1 }}
+          className="mt-20"
+        >
+          <div className="mx-auto w-[280px] sm:w-[400px] h-[160px] sm:h-[220px] rounded-xl glass glow-orange overflow-hidden flex items-center justify-center">
+            <div className="text-center">
+              <div className="font-display text-xs text-muted-foreground mb-2 tracking-wider uppercase">Preview</div>
+              <div className="font-display text-2xl sm:text-3xl font-bold gradient-hades-text">In-Game HUD</div>
+              <div className="text-xs text-muted-foreground mt-1">Coming soon</div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </section>
+  );
+};
+
+export default HeroSection;
