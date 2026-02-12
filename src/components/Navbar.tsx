@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Flame } from "lucide-react";
+import { Menu, X, Flame, Coins, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navItems = [
   { label: "Home", path: "/" },
@@ -13,19 +14,22 @@ const navItems = [
 const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, profile, signOut, loading } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
+  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/30">
       <div className="container mx-auto flex items-center justify-between h-16 px-4">
-        {/* Logo */}
         <Link to="/" className="flex items-center gap-2 group">
           <Flame className="h-7 w-7 text-primary group-hover:drop-shadow-[0_0_8px_hsl(32,95%,55%)] transition-all" />
-          <span className="font-display text-xl font-bold gradient-hades-text tracking-widest">
-            HADES
-          </span>
+          <span className="font-display text-xl font-bold gradient-hades-text tracking-widest">HADES</span>
         </Link>
 
-        {/* Desktop Links */}
         <div className="hidden md:flex items-center gap-1">
           {navItems.map((item) => (
             <Link
@@ -42,30 +46,40 @@ const Navbar = () => {
           ))}
         </div>
 
-        {/* Desktop Actions */}
         <div className="hidden md:flex items-center gap-3">
-          <Link to="/login">
-            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-              Login
-            </Button>
-          </Link>
-          <Link to="/register">
-            <Button size="sm" className="gradient-hades font-semibold glow-orange">
-              Sign Up
-            </Button>
-          </Link>
+          {!loading && user && profile ? (
+            <>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-sm font-semibold">
+                <Coins className="h-4 w-4" />
+                {profile.hades_coins}
+              </div>
+              <Link to="/profile">
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground gap-1.5">
+                  <User className="h-4 w-4" />
+                  {profile.username}
+                </Button>
+              </Link>
+              <Button variant="ghost" size="icon" onClick={handleSignOut} className="text-muted-foreground hover:text-foreground">
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </>
+          ) : !loading ? (
+            <>
+              <Link to="/login">
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">Login</Button>
+              </Link>
+              <Link to="/register">
+                <Button size="sm" className="gradient-hades font-semibold glow-orange">Sign Up</Button>
+              </Link>
+            </>
+          ) : null}
         </div>
 
-        {/* Mobile Toggle */}
-        <button
-          className="md:hidden text-foreground"
-          onClick={() => setMobileOpen(!mobileOpen)}
-        >
+        <button className="md:hidden text-foreground" onClick={() => setMobileOpen(!mobileOpen)}>
           {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </button>
       </div>
 
-      {/* Mobile Menu */}
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
@@ -89,14 +103,28 @@ const Navbar = () => {
                   {item.label}
                 </Link>
               ))}
-              <div className="flex gap-2 mt-2">
-                <Link to="/login" className="flex-1" onClick={() => setMobileOpen(false)}>
-                  <Button variant="outline" className="w-full">Login</Button>
-                </Link>
-                <Link to="/register" className="flex-1" onClick={() => setMobileOpen(false)}>
-                  <Button className="w-full gradient-hades glow-orange">Sign Up</Button>
-                </Link>
-              </div>
+              {user && profile ? (
+                <>
+                  <div className="flex items-center gap-1.5 px-4 py-3 text-primary text-sm font-semibold">
+                    <Coins className="h-4 w-4" /> {profile.hades_coins} Hades Coins
+                  </div>
+                  <Link to="/profile" onClick={() => setMobileOpen(false)}>
+                    <Button variant="outline" className="w-full">Profile</Button>
+                  </Link>
+                  <Button variant="ghost" className="w-full" onClick={() => { handleSignOut(); setMobileOpen(false); }}>
+                    Sign Out
+                  </Button>
+                </>
+              ) : (
+                <div className="flex gap-2 mt-2">
+                  <Link to="/login" className="flex-1" onClick={() => setMobileOpen(false)}>
+                    <Button variant="outline" className="w-full">Login</Button>
+                  </Link>
+                  <Link to="/register" className="flex-1" onClick={() => setMobileOpen(false)}>
+                    <Button className="w-full gradient-hades glow-orange">Sign Up</Button>
+                  </Link>
+                </div>
+              )}
             </div>
           </motion.div>
         )}
