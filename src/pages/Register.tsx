@@ -1,11 +1,44 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Flame } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 const Register = () => {
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const { signUp } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password !== confirm) {
+      toast({ title: "Passwords don't match", variant: "destructive" });
+      return;
+    }
+    if (password.length < 6) {
+      toast({ title: "Password must be at least 6 characters", variant: "destructive" });
+      return;
+    }
+    setIsLoading(true);
+    const { error } = await signUp(email, password, username);
+    setIsLoading(false);
+    if (error) {
+      toast({ title: "Registration failed", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Account created!", description: "Check your email to verify your account." });
+      navigate("/login");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center relative overflow-hidden">
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full bg-primary/5 blur-[100px]" />
@@ -25,33 +58,31 @@ const Register = () => {
         <div className="glass rounded-xl p-8">
           <h1 className="font-display text-xl font-bold text-center mb-6">Create Account</h1>
 
-          <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+          <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-2">
               <Label htmlFor="username">Username</Label>
-              <Input id="username" placeholder="GhostPlayer" className="glass border-border/50" />
+              <Input id="username" placeholder="GhostPlayer" className="glass border-border/50" value={username} onChange={(e) => setUsername(e.target.value)} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" placeholder="you@example.com" className="glass border-border/50" />
+              <Input id="email" type="email" placeholder="you@example.com" className="glass border-border/50" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" placeholder="••••••••" className="glass border-border/50" />
+              <Input id="password" type="password" placeholder="••••••••" className="glass border-border/50" value={password} onChange={(e) => setPassword(e.target.value)} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirm">Confirm Password</Label>
-              <Input id="confirm" type="password" placeholder="••••••••" className="glass border-border/50" />
+              <Input id="confirm" type="password" placeholder="••••••••" className="glass border-border/50" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
             </div>
-            <Button type="submit" className="w-full gradient-hades glow-orange font-display font-semibold tracking-wider">
-              Create Account
+            <Button type="submit" className="w-full gradient-hades glow-orange font-display font-semibold tracking-wider" disabled={isLoading}>
+              {isLoading ? "Creating Account..." : "Create Account"}
             </Button>
           </form>
 
           <p className="text-sm text-muted-foreground text-center mt-6">
             Already have an account?{" "}
-            <Link to="/login" className="text-primary hover:underline">
-              Sign in
-            </Link>
+            <Link to="/login" className="text-primary hover:underline">Sign in</Link>
           </p>
         </div>
       </motion.div>
