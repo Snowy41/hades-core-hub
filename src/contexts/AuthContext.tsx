@@ -8,6 +8,7 @@ interface Profile {
   username: string;
   avatar_url: string | null;
   hades_coins: number;
+  created_at: string;
 }
 
 interface AuthContextType {
