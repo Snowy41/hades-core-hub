@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Coins, Clock, ArrowUpRight, ArrowDownRight, User, Camera } from "lucide-react";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import Navbar from "@/components/Navbar";
@@ -49,11 +50,22 @@ const Profile = () => {
       });
   }, [user]);
 
+  const usernameSchema = z.string()
+    .min(3, "Username must be at least 3 characters")
+    .max(20, "Username must be less than 20 characters")
+    .regex(/^[a-zA-Z0-9_-]+$/, "Only letters, numbers, dashes and underscores allowed");
+
   const handleSaveUsername = async () => {
-    if (!user || !username.trim()) return;
+    if (!user) return;
+    const trimmed = username.trim();
+    const validation = usernameSchema.safeParse(trimmed);
+    if (!validation.success) {
+      toast({ title: "Invalid username", description: validation.error.errors[0].message, variant: "destructive" });
+      return;
+    }
     const { error } = await supabase
       .from("profiles")
-      .update({ username: username.trim() })
+      .update({ username: trimmed })
       .eq("user_id", user.id);
     if (error) {
       toast({ title: "Error", description: "Failed to update username.", variant: "destructive" });
