@@ -1,28 +1,96 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Search, Star, Download, BadgeCheck, Filter, Coins } from "lucide-react";
+import { Search, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import ConfigCard from "@/components/marketplace/ConfigCard";
+import UploadConfigDialog from "@/components/marketplace/UploadConfigDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
-const mockConfigs = [
-  { id: 1, name: "HypixelGod v3", author: "Hades Team", official: true, category: "PvP", price: 0, rating: 4.9, downloads: 3420, description: "Optimized for Hypixel Bedwars & Skywars." },
-  { id: 2, name: "VulcanBypass Pro", author: "Hades Team", official: true, category: "Bypass", price: 0, rating: 4.8, downloads: 2810, description: "Full Vulcan bypass configuration." },
-  { id: 3, name: "SmoothAim Elite", author: "xD4rk", official: false, category: "PvP", price: 150, rating: 4.6, downloads: 890, description: "Clean aim-assist with legit settings." },
-  { id: 4, name: "SpeedBridge Config", author: "BridgeMaster", official: false, category: "Movement", price: 0, rating: 4.3, downloads: 1240, description: "Perfect scaffold and bridge settings." },
-  { id: 5, name: "Ghost HvH Pack", author: "ph4ntom", official: false, category: "HvH", price: 300, rating: 4.7, downloads: 560, description: "Competitive HvH config with custom KillAura." },
-  { id: 6, name: "Stealth Suite", author: "Hades Team", official: true, category: "Bypass", price: 0, rating: 5.0, downloads: 4100, description: "Complete stealth mode configuration." },
-];
+const CATEGORIES = ["All", "PvP", "Bypass", "Movement", "HvH", "Utility"];
 
-const categories = ["All", "PvP", "Bypass", "Movement", "HvH"];
+interface ConfigRow {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  price: number;
+  is_official: boolean;
+  file_path: string | null;
+  downloads: number;
+  rating: number;
+  rating_count: number;
+  created_at: string;
+}
 
 const Marketplace = () => {
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
+  const [configs, setConfigs] = useState<(ConfigRow & { author_name: string })[]>([]);
+  const [purchasedIds, setPurchasedIds] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
 
-  const filtered = mockConfigs.filter((c) => {
-    const matchSearch = c.name.toLowerCase().includes(search.toLowerCase()) || c.author.toLowerCase().includes(search.toLowerCase());
+  const fetchConfigs = useCallback(async () => {
+    const { data: configsData } = await supabase
+      .from("configs")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (!configsData) {
+      setConfigs([]);
+      setLoading(false);
+      return;
+    }
+
+    // Get unique user_ids to fetch author names
+    const userIds = [...new Set(configsData.map((c) => c.user_id))];
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("user_id, username")
+      .in("user_id", userIds);
+
+    const profileMap = new Map((profiles || []).map((p) => [p.user_id, p.username]));
+
+    setConfigs(
+      configsData.map((c) => ({
+        ...c,
+        author_name: profileMap.get(c.user_id) || "Unknown",
+      }))
+    );
+    setLoading(false);
+  }, []);
+
+  const fetchPurchases = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("config_purchases")
+      .select("config_id")
+      .eq("user_id", user.id);
+    setPurchasedIds(new Set((data || []).map((p) => p.config_id)));
+  }, [user]);
+
+  useEffect(() => {
+    fetchConfigs();
+  }, [fetchConfigs]);
+
+  useEffect(() => {
+    fetchPurchases();
+  }, [fetchPurchases]);
+
+  const handleRefresh = () => {
+    fetchConfigs();
+    fetchPurchases();
+  };
+
+  const filtered = configs.filter((c) => {
+    const matchSearch =
+      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.author_name.toLowerCase().includes(search.toLowerCase());
     const matchCategory = category === "All" || c.category === category;
     return matchSearch && matchCategory;
   });
@@ -38,9 +106,10 @@ const Marketplace = () => {
               <h1 className="font-display text-4xl sm:text-5xl font-bold mb-4">
                 Config <span className="gradient-hades-text">Marketplace</span>
               </h1>
-              <p className="text-muted-foreground max-w-md mx-auto">
+              <p className="text-muted-foreground max-w-md mx-auto mb-6">
                 Browse, download, and share configs. Official configs are free.
               </p>
+              {user && <UploadConfigDialog onUploaded={handleRefresh} />}
             </motion.div>
           </div>
         </section>
@@ -59,7 +128,7 @@ const Marketplace = () => {
                 />
               </div>
               <div className="flex gap-2 overflow-x-auto pb-1">
-                {categories.map((cat) => (
+                {CATEGORIES.map((cat) => (
                   <Button
                     key={cat}
                     size="sm"
@@ -78,55 +147,33 @@ const Marketplace = () => {
         {/* Grid */}
         <section className="pb-24">
           <div className="container mx-auto px-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-              {filtered.map((config, i) => (
-                <motion.div
-                  key={config.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                  className="glass rounded-xl p-5 flex flex-col hover:border-primary/30 transition-all group"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-display text-sm font-semibold">{config.name}</h3>
-                        {config.official && (
-                          <BadgeCheck className="h-4 w-4 text-primary flex-shrink-0" />
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground">by {config.author}</p>
-                    </div>
-                    <span className="text-xs font-medium px-2 py-1 rounded-full bg-secondary text-secondary-foreground">
-                      {config.category}
-                    </span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-4 flex-1">{config.description}</p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Star className="h-3 w-3 text-primary" />
-                        {config.rating}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Download className="h-3 w-3" />
-                        {config.downloads.toLocaleString()}
-                      </span>
-                    </div>
-                    <Button size="sm" variant={config.price === 0 ? "default" : "outline"} className={config.price === 0 ? "gradient-hades text-xs" : "text-xs"}>
-                      {config.price === 0 ? (
-                        "Free"
-                      ) : (
-                        <span className="flex items-center gap-1">
-                          <Coins className="h-3 w-3" />
-                          {config.price}
-                        </span>
-                      )}
-                    </Button>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+            {loading ? (
+              <div className="flex justify-center py-20">
+                <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="text-center py-20 text-muted-foreground">
+                <p className="text-lg">No configs found</p>
+                <p className="text-sm mt-1">Be the first to upload one!</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
+                {filtered.map((config, i) => (
+                  <motion.div
+                    key={config.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                  >
+                    <ConfigCard
+                      config={config}
+                      isPurchased={purchasedIds.has(config.id)}
+                      onPurchased={handleRefresh}
+                    />
+                  </motion.div>
+                ))}
+              </div>
+            )}
           </div>
         </section>
       </main>
