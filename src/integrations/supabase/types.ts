@@ -14,6 +14,118 @@ export type Database = {
   }
   public: {
     Tables: {
+      config_purchases: {
+        Row: {
+          config_id: string
+          created_at: string
+          id: string
+          price_paid: number
+          user_id: string
+        }
+        Insert: {
+          config_id: string
+          created_at?: string
+          id?: string
+          price_paid?: number
+          user_id: string
+        }
+        Update: {
+          config_id?: string
+          created_at?: string
+          id?: string
+          price_paid?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "config_purchases_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      config_ratings: {
+        Row: {
+          config_id: string
+          created_at: string
+          id: string
+          rating: number
+          user_id: string
+        }
+        Insert: {
+          config_id: string
+          created_at?: string
+          id?: string
+          rating: number
+          user_id: string
+        }
+        Update: {
+          config_id?: string
+          created_at?: string
+          id?: string
+          rating?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "config_ratings_config_id_fkey"
+            columns: ["config_id"]
+            isOneToOne: false
+            referencedRelation: "configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      configs: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          downloads: number
+          file_path: string | null
+          id: string
+          is_official: boolean
+          name: string
+          price: number
+          rating: number
+          rating_count: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          downloads?: number
+          file_path?: string | null
+          id?: string
+          is_official?: boolean
+          name: string
+          price?: number
+          rating?: number
+          rating_count?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          downloads?: number
+          file_path?: string | null
+          id?: string
+          is_official?: boolean
+          name?: string
+          price?: number
+          rating?: number
+          rating_count?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -101,6 +213,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      purchase_config: { Args: { p_config_id: string }; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
