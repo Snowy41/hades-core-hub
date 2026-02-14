@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Coins, Clock, ArrowUpRight, ArrowDownRight, User, Camera } from "lucide-react";
+import { Coins, Clock, ArrowUpRight, ArrowDownRight, Package } from "lucide-react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import AvatarUpload from "@/components/profile/AvatarUpload";
+import UserConfigsList from "@/components/profile/UserConfigsList";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,11 @@ interface Transaction {
   description: string | null;
   created_at: string;
 }
+
+const usernameSchema = z.string()
+  .min(3, "Username must be at least 3 characters")
+  .max(20, "Username must be less than 20 characters")
+  .regex(/^[a-zA-Z0-9_-]+$/, "Only letters, numbers, dashes and underscores allowed");
 
 const Profile = () => {
   const { user, profile, loading, refreshProfile } = useAuth();
@@ -49,11 +55,6 @@ const Profile = () => {
         if (data) setTransactions(data);
       });
   }, [user]);
-
-  const usernameSchema = z.string()
-    .min(3, "Username must be at least 3 characters")
-    .max(20, "Username must be less than 20 characters")
-    .regex(/^[a-zA-Z0-9_-]+$/, "Only letters, numbers, dashes and underscores allowed");
 
   const handleSaveUsername = async () => {
     if (!user) return;
@@ -100,17 +101,7 @@ const Profile = () => {
           <Card className="glass border-border/30">
             <CardContent className="p-8">
               <div className="flex flex-col sm:flex-row items-center gap-6">
-                <div className="relative group">
-                  <Avatar className="h-24 w-24 border-2 border-primary/50">
-                    <AvatarImage src={profile.avatar_url || undefined} />
-                    <AvatarFallback className="bg-primary/20 text-primary text-2xl font-display">
-                      {profile.username.slice(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="absolute inset-0 rounded-full bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
-                    <Camera className="h-6 w-6 text-foreground" />
-                  </div>
-                </div>
+                <AvatarUpload />
                 <div className="flex-1 text-center sm:text-left space-y-2">
                   {editing ? (
                     <div className="flex gap-2 items-center">
@@ -154,8 +145,8 @@ const Profile = () => {
             </Card>
             <Card className="glass border-border/30">
               <CardContent className="p-6 flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-green-500/10">
-                  <ArrowDownRight className="h-6 w-6 text-green-400" />
+                <div className="p-3 rounded-xl bg-primary/10">
+                  <ArrowDownRight className="h-6 w-6 text-primary" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Earned</p>
@@ -167,8 +158,8 @@ const Profile = () => {
             </Card>
             <Card className="glass border-border/30">
               <CardContent className="p-6 flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-red-500/10">
-                  <ArrowUpRight className="h-6 w-6 text-red-400" />
+                <div className="p-3 rounded-xl bg-primary/10">
+                  <ArrowUpRight className="h-6 w-6 text-primary" />
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Spent</p>
@@ -179,6 +170,19 @@ const Profile = () => {
               </CardContent>
             </Card>
           </div>
+
+          {/* User's Configs */}
+          <Card className="glass border-border/30">
+            <CardHeader>
+              <CardTitle className="font-display text-xl flex items-center gap-2">
+                <Package className="h-5 w-5 text-primary" />
+                My Configs
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <UserConfigsList />
+            </CardContent>
+          </Card>
 
           {/* Transaction History */}
           <Card className="glass border-border/30">
