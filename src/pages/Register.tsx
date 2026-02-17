@@ -1,20 +1,21 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
-import { Flame } from "lucide-react";
+import { Flame, Key } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Register = () => {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [inviteKey, setInviteKey] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { signUp } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -28,14 +29,24 @@ const Register = () => {
       toast({ title: "Password must be at least 6 characters", variant: "destructive" });
       return;
     }
+    if (!inviteKey.trim()) {
+      toast({ title: "Invite key required", description: "You need an invite key to register.", variant: "destructive" });
+      return;
+    }
     setIsLoading(true);
-    const { error } = await signUp(email, password, username);
-    setIsLoading(false);
-    if (error) {
-      toast({ title: "Registration failed", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Account created!", description: "Check your email to verify your account." });
+    try {
+      const { data, error } = await supabase.functions.invoke("launcher-register", {
+        body: { email, password, username, invite_key: inviteKey.trim() },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast({ title: "Account created!", description: "You can now sign in." });
       navigate("/login");
+    } catch (err: any) {
+      toast({ title: "Registration failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -59,6 +70,19 @@ const Register = () => {
           <h1 className="font-display text-xl font-bold text-center mb-6">Create Account</h1>
 
           <form className="space-y-4" onSubmit={handleSubmit}>
+            <div className="space-y-2">
+              <Label htmlFor="invite-key" className="flex items-center gap-1.5">
+                <Key className="h-3.5 w-3.5 text-primary" /> Invite Key
+              </Label>
+              <Input
+                id="invite-key"
+                placeholder="Enter your invite key"
+                className="glass border-primary/30 focus:border-primary"
+                value={inviteKey}
+                onChange={(e) => setInviteKey(e.target.value)}
+                required
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="username">Username</Label>
               <Input id="username" placeholder="GhostPlayer" className="glass border-border/50" value={username} onChange={(e) => setUsername(e.target.value)} required />
