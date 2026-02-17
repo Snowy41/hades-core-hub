@@ -1,58 +1,21 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { Check, X, Star, Zap, Crown, Clock, Play } from "lucide-react";
+import { Check, Star, Clock, Play, Shield, Zap, Ghost, Crosshair, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { Link } from "react-router-dom";
 
-const tiers = [
-  {
-    name: "Free",
-    price: "$0",
-    period: "forever",
-    icon: Zap,
-    highlight: false,
-    features: [
-      { text: "Basic modules", included: true },
-      { text: "Community configs", included: true },
-      { text: "Standard injection", included: true },
-      { text: "Ghost injection", included: false },
-      { text: "Bypass engine", included: false },
-      { text: "Stealth mode", included: false },
-      { text: "Priority support", included: false },
-    ],
-  },
-  {
-    name: "Premium",
-    price: "$9.99",
-    period: "/month",
-    icon: Star,
-    highlight: true,
-    features: [
-      { text: "All modules (100+)", included: true },
-      { text: "Community configs", included: true },
-      { text: "Ghost injection", included: true },
-      { text: "Bypass engine", included: true },
-      { text: "Stealth mode", included: true },
-      { text: "Priority support", included: true },
-      { text: "Early access updates", included: false },
-    ],
-  },
-  {
-    name: "Lifetime",
-    price: "$49.99",
-    period: "one-time",
-    icon: Crown,
-    highlight: false,
-    features: [
-      { text: "All modules (100+)", included: true },
-      { text: "Community configs", included: true },
-      { text: "Ghost injection", included: true },
-      { text: "Bypass engine", included: true },
-      { text: "Stealth mode", included: true },
-      { text: "Priority support", included: true },
-      { text: "Early access updates", included: true },
-    ],
-  },
+const features = [
+  { text: "All modules (100+)", icon: Crosshair },
+  { text: "Ghost injection", icon: Ghost },
+  { text: "Bypass engine", icon: Shield },
+  { text: "Stealth mode", icon: Zap },
+  { text: "Community configs", icon: Star },
+  { text: "Priority support", icon: Check },
 ];
 
 const changelog = [
@@ -63,6 +26,31 @@ const changelog = [
 ];
 
 const Download = () => {
+  const { user, session } = useAuth();
+  const { toast } = useToast();
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+
+  const handleSubscribe = async () => {
+    if (!user || !session) {
+      toast({ title: "Sign in required", description: "Please sign in first.", variant: "destructive" });
+      return;
+    }
+    setCheckoutLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-checkout", {
+        body: { origin: window.location.origin },
+      });
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (err: any) {
+      toast({ title: "Checkout failed", description: err.message, variant: "destructive" });
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -72,71 +60,64 @@ const Download = () => {
           <div className="container mx-auto px-4">
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
               <h1 className="font-display text-4xl sm:text-5xl font-bold mb-4">
-                Choose Your <span className="gradient-hades-text">Plan</span>
+                Get <span className="gradient-hades-text">Hades Premium</span>
               </h1>
-              <p className="text-muted-foreground max-w-md mx-auto">
-                From casual to competitive — we've got a tier for every player.
+              <p className="text-muted-foreground max-w-lg mx-auto">
+                One plan. Full access. Everything you need to dominate.
               </p>
             </motion.div>
           </div>
         </section>
 
-        {/* Pricing */}
+        {/* Single Premium Card */}
         <section className="pb-24">
           <div className="container mx-auto px-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-              {tiers.map((tier, i) => (
-                <motion.div
-                  key={tier.name}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.1 }}
-                  className={`relative rounded-xl p-6 flex flex-col ${
-                    tier.highlight
-                      ? "glass border-primary/40 glow-orange"
-                      : "glass"
-                  }`}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="max-w-lg mx-auto relative rounded-xl p-8 glass border-primary/40 glow-orange"
+            >
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full gradient-hades text-xs font-display font-semibold text-primary-foreground">
+                Full Access
+              </div>
+              <div className="flex items-center gap-2 mb-4">
+                <Star className="h-5 w-5 text-primary" />
+                <span className="font-display text-sm font-semibold tracking-wider">PREMIUM</span>
+              </div>
+              <div className="mb-6">
+                <span className="font-display text-4xl font-bold">€10</span>
+                <span className="text-sm text-muted-foreground ml-1">/month</span>
+              </div>
+              <div className="flex flex-col gap-3 mb-8">
+                {features.map((f) => (
+                  <div key={f.text} className="flex items-center gap-3 text-sm">
+                    <f.icon className="h-4 w-4 text-primary flex-shrink-0" />
+                    <span className="text-foreground">{f.text}</span>
+                  </div>
+                ))}
+              </div>
+              {user ? (
+                <Button
+                  className="w-full gradient-hades glow-orange font-display font-semibold tracking-wider"
+                  onClick={handleSubscribe}
+                  disabled={checkoutLoading}
                 >
-                  {tier.highlight && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full gradient-hades text-xs font-display font-semibold text-primary-foreground">
-                      Most Popular
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2 mb-4">
-                    <tier.icon className="h-5 w-5 text-primary" />
-                    <span className="font-display text-sm font-semibold tracking-wider">{tier.name}</span>
-                  </div>
-                  <div className="mb-6">
-                    <span className="font-display text-3xl font-bold">{tier.price}</span>
-                    <span className="text-sm text-muted-foreground ml-1">{tier.period}</span>
-                  </div>
-                  <div className="flex flex-col gap-3 flex-1 mb-6">
-                    {tier.features.map((f) => (
-                      <div key={f.text} className="flex items-center gap-2 text-sm">
-                        {f.included ? (
-                          <Check className="h-4 w-4 text-primary flex-shrink-0" />
-                        ) : (
-                          <X className="h-4 w-4 text-muted-foreground/40 flex-shrink-0" />
-                        )}
-                        <span className={f.included ? "text-foreground" : "text-muted-foreground/40"}>
-                          {f.text}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  <Button
-                    className={
-                      tier.highlight
-                        ? "gradient-hades glow-orange font-display font-semibold tracking-wider"
-                        : "font-display font-semibold tracking-wider"
-                    }
-                    variant={tier.highlight ? "default" : "outline"}
-                  >
-                    {tier.price === "$0" ? "Download Free" : "Get " + tier.name}
+                  {checkoutLoading ? "Redirecting..." : "Subscribe Now"}
+                  {!checkoutLoading && <ArrowRight className="ml-2 h-4 w-4" />}
+                </Button>
+              ) : (
+                <Link to="/register">
+                  <Button className="w-full gradient-hades glow-orange font-display font-semibold tracking-wider">
+                    Sign Up to Subscribe
+                    <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
-                </motion.div>
-              ))}
-            </div>
+                </Link>
+              )}
+              <p className="text-xs text-muted-foreground text-center mt-3">
+                Requires an invite key to register. Cancel anytime.
+              </p>
+            </motion.div>
           </div>
         </section>
 
