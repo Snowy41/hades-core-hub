@@ -9,9 +9,11 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import AvatarUpload from "@/components/profile/AvatarUpload";
 import UserConfigsList from "@/components/profile/UserConfigsList";
+import ProfileBadges from "@/components/profile/ProfileBadges";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 
 interface Transaction {
@@ -27,6 +29,8 @@ const usernameSchema = z.string()
   .max(20, "Username must be less than 20 characters")
   .regex(/^[a-zA-Z0-9_-]+$/, "Only letters, numbers, dashes and underscores allowed");
 
+const descriptionSchema = z.string().max(200, "Description must be under 200 characters").optional();
+
 const Profile = () => {
   const { user, profile, loading, refreshProfile } = useAuth();
   const navigate = useNavigate();
@@ -34,44 +38,60 @@ const Profile = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [editing, setEditing] = useState(false);
   const [username, setUsername] = useState("");
+  const [description, setDescription] = useState("");
+  const [roles, setRoles] = useState<string[]>([]);
+  const [hasSubscription, setHasSubscription] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) navigate("/login");
   }, [loading, user, navigate]);
 
   useEffect(() => {
-    if (profile) setUsername(profile.username);
+    if (profile) {
+      setUsername(profile.username);
+      setDescription(profile.description || "");
+    }
   }, [profile]);
 
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from("transactions")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(20)
-      .then(({ data }) => {
-        if (data) setTransactions(data);
-      });
+    // Fetch transactions, roles, subscription in parallel
+    Promise.all([
+      supabase.from("transactions").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(20),
+      supabase.from("user_roles").select("role").eq("user_id", user.id),
+      supabase.from("subscriptions").select("status, current_period_end").eq("user_id", user.id).eq("status", "active").maybeSingle(),
+    ]).then(([txRes, rolesRes, subRes]) => {
+      if (txRes.data) setTransactions(txRes.data);
+      setRoles((rolesRes.data || []).map((r) => r.role));
+      setHasSubscription(!!subRes.data && new Date(subRes.data.current_period_end!) > new Date());
+    });
   }, [user]);
 
-  const handleSaveUsername = async () => {
+  const handleSave = async () => {
     if (!user) return;
-    const trimmed = username.trim();
-    const validation = usernameSchema.safeParse(trimmed);
-    if (!validation.success) {
-      toast({ title: "Invalid username", description: validation.error.errors[0].message, variant: "destructive" });
+    const trimmedUsername = username.trim();
+    const trimmedDesc = description.trim();
+
+    const usernameValidation = usernameSchema.safeParse(trimmedUsername);
+    if (!usernameValidation.success) {
+      toast({ title: "Invalid username", description: usernameValidation.error.errors[0].message, variant: "destructive" });
       return;
     }
+    const descValidation = descriptionSchema.safeParse(trimmedDesc);
+    if (!descValidation.success) {
+      toast({ title: "Invalid description", description: descValidation.error.errors[0].message, variant: "destructive" });
+      return;
+    }
+
     const { error } = await supabase
       .from("profiles")
-      .update({ username: trimmed })
+      .update({ username: trimmedUsername, description: trimmedDesc || null } as any)
       .eq("user_id", user.id);
+
     if (error) {
-      toast({ title: "Error", description: "Failed to update username.", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to update profile.", variant: "destructive" });
     } else {
-      toast({ title: "Updated", description: "Username saved." });
+      toast({ title: "Updated", description: "Profile saved." });
       await refreshProfile();
       setEditing(false);
     }
@@ -82,6 +102,7 @@ const Profile = () => {
     withdrawal: { label: "Withdrawal", color: "text-red-400", icon: ArrowUpRight },
     config_buy: { label: "Config Bought", color: "text-red-400", icon: ArrowUpRight },
     config_sale: { label: "Config Sale", color: "text-green-400", icon: ArrowDownRight },
+    subscription: { label: "Subscription", color: "text-red-400", icon: ArrowUpRight },
   };
 
   if (loading || !profile) {
@@ -102,26 +123,44 @@ const Profile = () => {
             <CardContent className="p-8">
               <div className="flex flex-col sm:flex-row items-center gap-6">
                 <AvatarUpload />
-                <div className="flex-1 text-center sm:text-left space-y-2">
+                <div className="flex-1 text-center sm:text-left space-y-3">
                   {editing ? (
-                    <div className="flex gap-2 items-center">
-                      <Input
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        className="max-w-xs bg-secondary border-border"
+                    <div className="space-y-3">
+                      <div className="flex gap-2 items-center">
+                        <Input
+                          value={username}
+                          onChange={(e) => setUsername(e.target.value)}
+                          className="max-w-xs bg-secondary border-border"
+                          placeholder="Username"
+                        />
+                      </div>
+                      <Textarea
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        className="bg-secondary border-border resize-none"
+                        placeholder="Tell others about yourself... (max 200 chars)"
+                        maxLength={200}
+                        rows={2}
                       />
-                      <Button size="sm" onClick={handleSaveUsername} className="gradient-hades">Save</Button>
-                      <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setUsername(profile.username); }}>Cancel</Button>
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={handleSave} className="gradient-hades">Save</Button>
+                        <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setUsername(profile.username); setDescription(profile.description || ""); }}>Cancel</Button>
+                      </div>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-3 justify-center sm:justify-start">
-                      <h1 className="text-3xl font-display font-bold gradient-hades-text">{profile.username}</h1>
-                      <Button size="sm" variant="ghost" onClick={() => setEditing(true)} className="text-muted-foreground hover:text-foreground">
-                        Edit
-                      </Button>
-                    </div>
+                    <>
+                      <div className="flex items-center gap-3 justify-center sm:justify-start">
+                        <h1 className="text-3xl font-display font-bold gradient-hades-text">{profile.username}</h1>
+                        <Button size="sm" variant="ghost" onClick={() => setEditing(true)} className="text-muted-foreground hover:text-foreground">
+                          Edit
+                        </Button>
+                      </div>
+                      <ProfileBadges roles={roles} createdAt={profile.created_at || ""} hasSubscription={hasSubscription} />
+                      {profile.description && (
+                        <p className="text-muted-foreground text-sm">{profile.description}</p>
+                      )}
+                    </>
                   )}
-                  <p className="text-muted-foreground text-sm">{user?.email}</p>
                   <p className="text-muted-foreground text-xs">
                     Member since {new Date(profile.created_at || "").toLocaleDateString()}
                   </p>

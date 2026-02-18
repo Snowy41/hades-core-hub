@@ -7,6 +7,7 @@ interface Profile {
   user_id: string;
   username: string;
   avatar_url: string | null;
+  description: string | null;
   hades_coins: number;
   created_at: string;
 }

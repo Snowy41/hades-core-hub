@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.launcher-config-download]
 verify_jwt = false
+
+[functions.launcher-beta-download]
+verify_jwt = false

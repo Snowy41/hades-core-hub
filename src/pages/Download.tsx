@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Check, Star, Clock, Play, Shield, Zap, Ghost, Crosshair, ArrowRight } from "lucide-react";
+import { Check, Star, Clock, Play, Shield, Zap, Ghost, Crosshair, ArrowRight, Download as DownloadIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -29,6 +29,7 @@ const Download = () => {
   const { user, session } = useAuth();
   const { toast } = useToast();
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [betaLoading, setBetaLoading] = useState(false);
 
   const handleSubscribe = async () => {
     if (!user || !session) {
@@ -51,6 +52,33 @@ const Download = () => {
     }
   };
 
+  const handleBetaDownload = async () => {
+    if (!user || !session) {
+      toast({ title: "Sign in required", description: "Please sign in first.", variant: "destructive" });
+      return;
+    }
+    setBetaLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("launcher-beta-download");
+      if (error) throw error;
+      if (data instanceof Blob) {
+        const url = URL.createObjectURL(data);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "injector.exe";
+        a.click();
+        URL.revokeObjectURL(url);
+        toast({ title: "Download started!" });
+      } else {
+        throw new Error("Download failed");
+      }
+    } catch (err: any) {
+      toast({ title: "Download failed", description: err.message, variant: "destructive" });
+    } finally {
+      setBetaLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -69,55 +97,108 @@ const Download = () => {
           </div>
         </section>
 
-        {/* Single Premium Card */}
+        {/* Beta + Premium Cards */}
         <section className="pb-24">
           <div className="container mx-auto px-4">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="max-w-lg mx-auto relative rounded-xl p-8 glass border-primary/40 glow-orange"
-            >
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full gradient-hades text-xs font-display font-semibold text-primary-foreground">
-                Full Access
-              </div>
-              <div className="flex items-center gap-2 mb-4">
-                <Star className="h-5 w-5 text-primary" />
-                <span className="font-display text-sm font-semibold tracking-wider">PREMIUM</span>
-              </div>
-              <div className="mb-6">
-                <span className="font-display text-4xl font-bold">€10</span>
-                <span className="text-sm text-muted-foreground ml-1">/month</span>
-              </div>
-              <div className="flex flex-col gap-3 mb-8">
-                {features.map((f) => (
-                  <div key={f.text} className="flex items-center gap-3 text-sm">
-                    <f.icon className="h-4 w-4 text-primary flex-shrink-0" />
-                    <span className="text-foreground">{f.text}</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto">
+              {/* Beta Card - Free */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 }}
+                className="relative rounded-xl p-8 glass border-border/40"
+              >
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-secondary text-xs font-display font-semibold text-secondary-foreground">
+                  Free
+                </div>
+                <div className="flex items-center gap-2 mb-4">
+                  <DownloadIcon className="h-5 w-5 text-muted-foreground" />
+                  <span className="font-display text-sm font-semibold tracking-wider">BETA</span>
+                </div>
+                <div className="mb-6">
+                  <span className="font-display text-4xl font-bold">€0</span>
+                  <span className="text-sm text-muted-foreground ml-1">/forever</span>
+                </div>
+                <div className="flex flex-col gap-3 mb-8">
+                  <div className="flex items-center gap-3 text-sm">
+                    <DownloadIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <span className="text-foreground">Injector download</span>
                   </div>
-                ))}
-              </div>
-              {user ? (
-                <Button
-                  className="w-full gradient-hades glow-orange font-display font-semibold tracking-wider"
-                  onClick={handleSubscribe}
-                  disabled={checkoutLoading}
-                >
-                  {checkoutLoading ? "Redirecting..." : "Subscribe Now"}
-                  {!checkoutLoading && <ArrowRight className="ml-2 h-4 w-4" />}
-                </Button>
-              ) : (
-                <Link to="/register">
-                  <Button className="w-full gradient-hades glow-orange font-display font-semibold tracking-wider">
-                    Sign Up to Subscribe
-                    <ArrowRight className="ml-2 h-4 w-4" />
+                  <div className="flex items-center gap-3 text-sm">
+                    <Shield className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <span className="text-foreground">Basic features</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm">
+                    <Star className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <span className="text-foreground">Community access</span>
+                  </div>
+                </div>
+                {user ? (
+                  <Button
+                    className="w-full font-display font-semibold tracking-wider"
+                    variant="outline"
+                    onClick={handleBetaDownload}
+                    disabled={betaLoading}
+                  >
+                    {betaLoading ? "Downloading..." : "Download Injector"}
+                    {!betaLoading && <DownloadIcon className="ml-2 h-4 w-4" />}
                   </Button>
-                </Link>
-              )}
-              <p className="text-xs text-muted-foreground text-center mt-3">
-                Requires an invite key to register. Cancel anytime.
-              </p>
-            </motion.div>
+                ) : (
+                  <Link to="/register">
+                    <Button className="w-full font-display font-semibold tracking-wider" variant="outline">
+                      Sign Up to Download
+                    </Button>
+                  </Link>
+                )}
+              </motion.div>
+              {/* Premium Card */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="relative rounded-xl p-8 glass border-primary/40 glow-orange"
+              >
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full gradient-hades text-xs font-display font-semibold text-primary-foreground">
+                  Full Access
+                </div>
+                <div className="flex items-center gap-2 mb-4">
+                  <Star className="h-5 w-5 text-primary" />
+                  <span className="font-display text-sm font-semibold tracking-wider">PREMIUM</span>
+                </div>
+                <div className="mb-6">
+                  <span className="font-display text-4xl font-bold">€10</span>
+                  <span className="text-sm text-muted-foreground ml-1">/month</span>
+                </div>
+                <div className="flex flex-col gap-3 mb-8">
+                  {features.map((f) => (
+                    <div key={f.text} className="flex items-center gap-3 text-sm">
+                      <f.icon className="h-4 w-4 text-primary flex-shrink-0" />
+                      <span className="text-foreground">{f.text}</span>
+                    </div>
+                  ))}
+                </div>
+                {user ? (
+                  <Button
+                    className="w-full gradient-hades glow-orange font-display font-semibold tracking-wider"
+                    onClick={handleSubscribe}
+                    disabled={checkoutLoading}
+                  >
+                    {checkoutLoading ? "Redirecting..." : "Subscribe Now"}
+                    {!checkoutLoading && <ArrowRight className="ml-2 h-4 w-4" />}
+                  </Button>
+                ) : (
+                  <Link to="/register">
+                    <Button className="w-full gradient-hades glow-orange font-display font-semibold tracking-wider">
+                      Sign Up to Subscribe
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Link>
+                )}
+                <p className="text-xs text-muted-foreground text-center mt-3">
+                  Requires an invite key to register. Cancel anytime.
+                </p>
+              </motion.div>
+            </div>
           </div>
         </section>
 
