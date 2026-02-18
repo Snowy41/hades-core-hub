@@ -11,9 +11,20 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { email, password } = await req.json();
+    const body = await req.json();
+    const email = typeof body.email === "string" ? body.email.trim() : "";
+    const password = typeof body.password === "string" ? body.password : "";
+
     if (!email || !password) {
       return new Response(JSON.stringify({ error: "Email and password required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Basic input validation
+    if (email.length > 255 || password.length > 128) {
+      return new Response(JSON.stringify({ error: "Invalid input" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -26,7 +37,7 @@ Deno.serve(async (req) => {
 
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      return new Response(JSON.stringify({ error: error.message }), {
+      return new Response(JSON.stringify({ error: "Invalid credentials" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -35,12 +46,11 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({
       access_token: data.session.access_token,
       user_id: data.user.id,
-      email: data.user.email,
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (err) {
+  } catch (_err) {
     return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

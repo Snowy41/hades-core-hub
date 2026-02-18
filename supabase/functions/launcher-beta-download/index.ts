@@ -25,6 +25,7 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
+    // Verify user is authenticated
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
       return new Response(JSON.stringify({ error: "Invalid token" }), {
@@ -33,33 +34,18 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check active subscription using service role
+    // Download the injector from storage (no subscription required)
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { data: sub } = await supabaseAdmin
-      .from("subscriptions")
-      .select("status, current_period_end")
-      .eq("user_id", user.id)
-      .eq("status", "active")
-      .single();
-
-    if (!sub || !sub.current_period_end || new Date(sub.current_period_end) <= new Date()) {
-      return new Response(JSON.stringify({ error: "No active subscription" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Download the DLL from storage
     const { data: fileData, error: fileError } = await supabaseAdmin.storage
       .from("configs")
-      .download("client/hades.dll");
+      .download("client/injector.exe");
 
     if (fileError || !fileData) {
-      return new Response(JSON.stringify({ error: "Client file not found" }), {
+      return new Response(JSON.stringify({ error: "Injector file not found" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -70,7 +56,7 @@ Deno.serve(async (req) => {
       headers: {
         ...corsHeaders,
         "Content-Type": "application/octet-stream",
-        "Content-Disposition": "attachment; filename=hades.dll",
+        "Content-Disposition": "attachment; filename=injector.exe",
       },
     });
   } catch (_err) {

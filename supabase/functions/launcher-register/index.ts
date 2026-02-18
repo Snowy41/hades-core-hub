@@ -11,9 +11,36 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { email, password, username, invite_key } = await req.json();
+    const body = await req.json();
+    const email = typeof body.email === "string" ? body.email.trim() : "";
+    const password = typeof body.password === "string" ? body.password : "";
+    const username = typeof body.username === "string" ? body.username.trim() : "";
+    const invite_key = typeof body.invite_key === "string" ? body.invite_key.trim() : "";
+
     if (!email || !password || !username || !invite_key) {
       return new Response(JSON.stringify({ error: "Email, password, username, and invite_key required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Input validation
+    if (email.length > 255 || password.length > 128 || password.length < 6) {
+      return new Response(JSON.stringify({ error: "Invalid input: password must be 6-128 chars" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (username.length < 3 || username.length > 20 || !/^[a-zA-Z0-9_-]+$/.test(username)) {
+      return new Response(JSON.stringify({ error: "Username must be 3-20 chars, alphanumeric with dashes/underscores" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (invite_key.length > 50) {
+      return new Response(JSON.stringify({ error: "Invalid invite key" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -68,7 +95,7 @@ Deno.serve(async (req) => {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (err) {
+  } catch (_err) {
     return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

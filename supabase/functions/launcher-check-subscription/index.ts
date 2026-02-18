@@ -25,16 +25,13 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
       return new Response(JSON.stringify({ error: "Invalid token" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const userId = claimsData.claims.sub;
 
     // Check subscription using service role to bypass RLS
     const supabaseAdmin = createClient(
@@ -45,11 +42,11 @@ Deno.serve(async (req) => {
     const { data: sub } = await supabaseAdmin
       .from("subscriptions")
       .select("status, current_period_end")
-      .eq("user_id", userId)
+      .eq("user_id", user.id)
       .eq("status", "active")
       .single();
 
-    const isActive = !!sub && new Date(sub.current_period_end) > new Date();
+    const isActive = !!sub && !!sub.current_period_end && new Date(sub.current_period_end) > new Date();
 
     return new Response(JSON.stringify({
       active: isActive,
@@ -58,7 +55,7 @@ Deno.serve(async (req) => {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (err) {
+  } catch (_err) {
     return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

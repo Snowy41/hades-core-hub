@@ -25,43 +25,43 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const userId = claimsData.claims.sub;
+    // Get user's purchased config IDs + own configs
+    const [purchasesRes, ownRes] = await Promise.all([
+      supabase.from("config_purchases").select("config_id").eq("user_id", user.id),
+      supabase.from("configs").select("id, name, description, category, file_path, is_official, downloads, rating").eq("user_id", user.id),
+    ]);
 
-    // Get user's purchased config IDs
-    const { data: purchases } = await supabase
-      .from("config_purchases")
-      .select("config_id")
-      .eq("user_id", userId);
+    const purchasedIds = (purchasesRes.data || []).map((p: any) => p.config_id);
+    const ownConfigs = ownRes.data || [];
 
-    if (!purchases || purchases.length === 0) {
-      return new Response(JSON.stringify({ configs: [] }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    let purchasedConfigs: any[] = [];
+    if (purchasedIds.length > 0) {
+      const { data } = await supabase
+        .from("configs")
+        .select("id, name, description, category, file_path, is_official, downloads, rating")
+        .in("id", purchasedIds);
+      purchasedConfigs = data || [];
     }
 
-    const configIds = purchases.map((p: any) => p.config_id);
+    // Merge and deduplicate
+    const allConfigs = new Map();
+    for (const c of [...ownConfigs, ...purchasedConfigs]) {
+      allConfigs.set(c.id, c);
+    }
 
-    // Fetch full config details
-    const { data: configs } = await supabase
-      .from("configs")
-      .select("id, name, description, category, file_path, is_official, downloads, rating")
-      .in("id", configIds);
-
-    return new Response(JSON.stringify({ configs: configs || [] }), {
+    return new Response(JSON.stringify({ configs: Array.from(allConfigs.values()) }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (err) {
+  } catch (_err) {
     return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
