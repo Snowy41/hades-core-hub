@@ -69,14 +69,8 @@ const Profile = () => {
 
   const handleSave = async () => {
     if (!user) return;
-    const trimmedUsername = username.trim();
     const trimmedDesc = description.trim();
 
-    const usernameValidation = usernameSchema.safeParse(trimmedUsername);
-    if (!usernameValidation.success) {
-      toast({ title: "Invalid username", description: usernameValidation.error.errors[0].message, variant: "destructive" });
-      return;
-    }
     const descValidation = descriptionSchema.safeParse(trimmedDesc);
     if (!descValidation.success) {
       toast({ title: "Invalid description", description: descValidation.error.errors[0].message, variant: "destructive" });
@@ -85,7 +79,7 @@ const Profile = () => {
 
     const { error } = await supabase
       .from("profiles")
-      .update({ username: trimmedUsername, description: trimmedDesc || null } as any)
+      .update({ description: trimmedDesc || null } as any)
       .eq("user_id", user.id);
 
     if (error) {
@@ -126,14 +120,7 @@ const Profile = () => {
                 <div className="flex-1 text-center sm:text-left space-y-3">
                   {editing ? (
                     <div className="space-y-3">
-                      <div className="flex gap-2 items-center">
-                        <Input
-                          value={username}
-                          onChange={(e) => setUsername(e.target.value)}
-                          className="max-w-xs bg-secondary border-border"
-                          placeholder="Username"
-                        />
-                      </div>
+                      <h1 className="text-3xl font-display font-bold gradient-hades-text">{profile.username}</h1>
                       <Textarea
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
@@ -144,7 +131,7 @@ const Profile = () => {
                       />
                       <div className="flex gap-2">
                         <Button size="sm" onClick={handleSave} className="gradient-hades">Save</Button>
-                        <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setUsername(profile.username); setDescription(profile.description || ""); }}>Cancel</Button>
+                        <Button size="sm" variant="ghost" onClick={() => { setEditing(false); setDescription(profile.description || ""); }}>Cancel</Button>
                       </div>
                     </div>
                   ) : (
