@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Star, Download, BadgeCheck, Coins } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -87,7 +88,12 @@ const ConfigCard = ({ config, isPurchased, onPurchased }: ConfigCardProps) => {
             <h3 className="font-display text-sm font-semibold">{config.name}</h3>
             {config.is_official && <BadgeCheck className="h-4 w-4 text-primary flex-shrink-0" />}
           </div>
-          <p className="text-xs text-muted-foreground">by {config.author_name || "Unknown"}</p>
+          <p className="text-xs text-muted-foreground">
+            by{" "}
+            <Link to={`/user/${config.author_name}`} className="text-primary hover:underline">
+              {config.author_name || "Unknown"}
+            </Link>
+          </p>
         </div>
         <span className="text-xs font-medium px-2 py-1 rounded-full bg-secondary text-secondary-foreground">
           {config.category}

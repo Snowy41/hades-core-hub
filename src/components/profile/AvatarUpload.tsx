@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Camera } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,13 +10,30 @@ const AvatarUpload = () => {
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [canUseGif, setCanUseGif] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase.from("user_roles").select("role").eq("user_id", user.id).then(({ data }) => {
+      const roles = (data || []).map((r) => r.role);
+      setCanUseGif(roles.includes("owner") || roles.includes("admin") || roles.includes("moderator"));
+    });
+  }, [user]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
-    if (!file.type.startsWith("image/")) {
-      toast({ title: "Invalid file", description: "Please select an image file.", variant: "destructive" });
+    const allowedTypes = canUseGif
+      ? ["image/jpeg", "image/png", "image/webp", "image/gif"]
+      : ["image/jpeg", "image/png", "image/webp"];
+
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Invalid file",
+        description: canUseGif ? "Please select an image file (JPEG, PNG, WebP, or GIF)." : "Please select an image file (JPEG, PNG, or WebP).",
+        variant: "destructive",
+      });
       return;
     }
     if (file.size > 2 * 1024 * 1024) {
@@ -55,6 +72,8 @@ const AvatarUpload = () => {
     }
   };
 
+  const acceptTypes = canUseGif ? "image/jpeg,image/png,image/webp,image/gif" : "image/jpeg,image/png,image/webp";
+
   return (
     <div className="relative group">
       <Avatar className="h-24 w-24 border-2 border-primary/50">
@@ -76,7 +95,7 @@ const AvatarUpload = () => {
       <input
         ref={fileRef}
         type="file"
-        accept="image/*"
+        accept={acceptTypes}
         className="hidden"
         onChange={handleUpload}
         disabled={uploading}
