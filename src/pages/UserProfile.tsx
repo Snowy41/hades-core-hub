@@ -98,7 +98,7 @@ const UserProfile = () => {
                 </Avatar>
                 <div className="flex-1 text-center sm:text-left space-y-3">
                   <h1 className="text-3xl font-display font-bold gradient-hades-text">{profile.username}</h1>
-                  <ProfileBadges roles={roles} createdAt={profile.created_at} hasSubscription={hasSubscription} />
+                  <ProfileBadges roles={roles} createdAt={profile.created_at} hasSubscription={hasSubscription} userId={profile.user_id} />
                   {profile.description && (
                     <p className="text-muted-foreground text-sm">{profile.description}</p>
                   )}

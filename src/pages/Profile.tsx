@@ -142,7 +142,7 @@ const Profile = () => {
                           Edit
                         </Button>
                       </div>
-                      <ProfileBadges roles={roles} createdAt={profile.created_at || ""} hasSubscription={hasSubscription} />
+                      <ProfileBadges roles={roles} createdAt={profile.created_at || ""} hasSubscription={hasSubscription} userId={user?.id} />
                       {profile.description && (
                         <p className="text-muted-foreground text-sm">{profile.description}</p>
                       )}

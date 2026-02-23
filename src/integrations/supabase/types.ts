@@ -255,6 +255,36 @@ export type Database = {
         }
         Relationships: []
       }
+      user_badges: {
+        Row: {
+          assigned_by: string
+          badge_color: string
+          badge_icon: string
+          badge_name: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          assigned_by: string
+          badge_color?: string
+          badge_icon?: string
+          badge_name: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          assigned_by?: string
+          badge_color?: string
+          badge_icon?: string
+          badge_name?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
