@@ -39,6 +39,26 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // Check if user is admin or owner — they get unlimited subscription
+    const { data: userRoles } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id);
+
+    const roles = (userRoles || []).map((r: any) => r.role);
+    const isStaff = roles.includes("owner") || roles.includes("admin");
+
+    if (isStaff) {
+      return new Response(JSON.stringify({
+        active: true,
+        expires_at: null,
+        unlimited: true,
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { data: sub } = await supabaseAdmin
       .from("subscriptions")
       .select("status, current_period_end")

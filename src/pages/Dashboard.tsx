@@ -11,6 +11,8 @@ import DashboardKeys from "@/components/dashboard/DashboardKeys";
 import DashboardUsers from "@/components/dashboard/DashboardUsers";
 import DashboardSubs from "@/components/dashboard/DashboardSubs";
 import DashboardConfigs from "@/components/dashboard/DashboardConfigs";
+import DashboardStats from "@/components/dashboard/DashboardStats";
+import DashboardBadges from "@/components/dashboard/DashboardBadges";
 
 const Dashboard = () => {
   const { user, loading } = useAuth();
@@ -67,19 +69,27 @@ const Dashboard = () => {
             <h1 className="font-display text-3xl font-bold gradient-hades-text">Owner Dashboard</h1>
           </div>
 
-          <Tabs defaultValue="keys">
-            <TabsList className="bg-secondary/50">
+          <Tabs defaultValue="stats">
+            <TabsList className="bg-secondary/50 flex-wrap">
+              <TabsTrigger value="stats">Statistics</TabsTrigger>
               <TabsTrigger value="keys">Invite Keys</TabsTrigger>
               <TabsTrigger value="users">Users</TabsTrigger>
+              <TabsTrigger value="badges">Badges</TabsTrigger>
               <TabsTrigger value="configs">Configs</TabsTrigger>
               <TabsTrigger value="subs">Subscriptions</TabsTrigger>
             </TabsList>
 
+            <TabsContent value="stats">
+              <DashboardStats />
+            </TabsContent>
             <TabsContent value="keys">
               <DashboardKeys />
             </TabsContent>
             <TabsContent value="users">
               <DashboardUsers />
+            </TabsContent>
+            <TabsContent value="badges">
+              <DashboardBadges />
             </TabsContent>
             <TabsContent value="configs">
               <DashboardConfigs />
