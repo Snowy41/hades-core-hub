@@ -64,6 +64,7 @@ const Dashboard = () => {
               <TabsTrigger value="configs">Configs</TabsTrigger>
               <TabsTrigger value="subs">Subscriptions</TabsTrigger>
               <TabsTrigger value="files">Client Files</TabsTrigger>
+              <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
 
             <TabsContent value="stats"><DashboardStats /></TabsContent>
@@ -73,6 +74,7 @@ const Dashboard = () => {
             <TabsContent value="configs"><DashboardConfigs /></TabsContent>
             <TabsContent value="subs"><DashboardSubs /></TabsContent>
             <TabsContent value="files"><DashboardFiles /></TabsContent>
+            <TabsContent value="settings"><DashboardSettings /></TabsContent>
           </Tabs>
         </motion.div>
       </main>
