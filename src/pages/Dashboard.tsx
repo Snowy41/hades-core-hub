@@ -13,6 +13,7 @@ import DashboardConfigs from "@/components/dashboard/DashboardConfigs";
 import DashboardStats from "@/components/dashboard/DashboardStats";
 import DashboardBadges from "@/components/dashboard/DashboardBadges";
 import DashboardFiles from "@/components/dashboard/DashboardFiles";
+import DashboardSettings from "@/components/dashboard/DashboardSettings";
 
 const Dashboard = () => {
   const { user, loading, isOwnerOrAdmin, roles } = useAuth();
