@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Flame, Coins, LogOut, User, Crown } from "lucide-react";
+import { Menu, X, Flame, Coins, LogOut, User, Crown, Bug } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -44,6 +44,25 @@ const Navbar = () => {
               {item.label}
             </Link>
           ))}
+          {user && (
+            <Link
+              to="/beta-reports"
+              className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                location.pathname === "/beta-reports"
+                  ? "text-destructive bg-destructive/10"
+                  : "text-destructive/80 hover:text-destructive hover:bg-destructive/10"
+              }`}
+            >
+              <span className="flex items-center gap-1.5">
+                <Bug className="h-3.5 w-3.5" />
+                BETA
+              </span>
+              <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-destructive" />
+              </span>
+            </Link>
+          )}
         </div>
 
         <div className="hidden md:flex items-center gap-3">
@@ -111,6 +130,24 @@ const Navbar = () => {
                   {item.label}
                 </Link>
               ))}
+              {user && (
+                <Link
+                  to="/beta-reports"
+                  onClick={() => setMobileOpen(false)}
+                  className={`px-4 py-3 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                    location.pathname === "/beta-reports"
+                      ? "text-destructive bg-destructive/10"
+                      : "text-destructive/80 hover:text-destructive hover:bg-destructive/10"
+                  }`}
+                >
+                  <Bug className="h-4 w-4" />
+                  BETA Reports
+                  <span className="flex h-2 w-2 ml-1">
+                    <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-destructive opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-destructive" />
+                  </span>
+                </Link>
+              )}
               {user && profile ? (
                 <>
                   {isOwnerOrAdmin && (

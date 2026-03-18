@@ -14,6 +14,7 @@ import DashboardStats from "@/components/dashboard/DashboardStats";
 import DashboardBadges from "@/components/dashboard/DashboardBadges";
 import DashboardFiles from "@/components/dashboard/DashboardFiles";
 import DashboardSettings from "@/components/dashboard/DashboardSettings";
+import DashboardBugReports from "@/components/dashboard/DashboardBugReports";
 
 const Dashboard = () => {
   const { user, loading, isOwnerOrAdmin, roles } = useAuth();
@@ -64,6 +65,7 @@ const Dashboard = () => {
               <TabsTrigger value="configs">Configs</TabsTrigger>
               <TabsTrigger value="subs">Subscriptions</TabsTrigger>
               <TabsTrigger value="files">Client Files</TabsTrigger>
+              <TabsTrigger value="bugs">Bug Reports</TabsTrigger>
               <TabsTrigger value="settings">Settings</TabsTrigger>
             </TabsList>
 
@@ -74,6 +76,7 @@ const Dashboard = () => {
             <TabsContent value="configs"><DashboardConfigs /></TabsContent>
             <TabsContent value="subs"><DashboardSubs /></TabsContent>
             <TabsContent value="files"><DashboardFiles /></TabsContent>
+            <TabsContent value="bugs"><DashboardBugReports /></TabsContent>
             <TabsContent value="settings"><DashboardSettings /></TabsContent>
           </Tabs>
         </motion.div>

@@ -10,6 +10,7 @@ import Footer from "@/components/Footer";
 import AvatarUpload from "@/components/profile/AvatarUpload";
 import UserConfigsList from "@/components/profile/UserConfigsList";
 import ProfileBadges from "@/components/profile/ProfileBadges";
+import DiscordLink from "@/components/profile/DiscordLink";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -155,6 +156,9 @@ const Profile = () => {
               </div>
             </CardContent>
           </Card>
+
+          {/* Discord Link */}
+          <DiscordLink />
 
           {/* Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
