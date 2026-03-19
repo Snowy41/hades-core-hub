@@ -33,12 +33,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check subscription or staff role
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // Check subscription or staff role
     const { data: userRoles } = await supabaseAdmin
       .from("user_roles")
       .select("role")
@@ -48,7 +48,6 @@ Deno.serve(async (req) => {
     const isStaff = roles.includes("owner") || roles.includes("admin");
 
     if (!isStaff) {
-      // Check active subscription
       const { data: sub } = await supabaseAdmin
         .from("subscriptions")
         .select("status, current_period_end")
@@ -64,25 +63,21 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Download JAR from storage
-    const { data: fileData, error: fileError } = await supabaseAdmin.storage
+    // Return signed URL instead of streaming (avoids memory limits)
+    const { data: signedData, error: signedError } = await supabaseAdmin.storage
       .from("configs")
-      .download("client/hades.jar");
+      .createSignedUrl("client/hades.jar", 300);
 
-    if (fileError || !fileData) {
+    if (signedError || !signedData?.signedUrl) {
       return new Response(JSON.stringify({ error: "JAR file not found" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(fileData, {
+    return new Response(JSON.stringify({ url: signedData.signedUrl }), {
       status: 200,
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/java-archive",
-        "Content-Disposition": "attachment; filename=hades.jar",
-      },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (_err) {
     return new Response(JSON.stringify({ error: "Internal server error" }), {
