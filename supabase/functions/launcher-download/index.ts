@@ -33,12 +33,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check active subscription using service role
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // Check active subscription
     const { data: sub } = await supabaseAdmin
       .from("subscriptions")
       .select("status, current_period_end")
@@ -53,25 +53,21 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Download the DLL from storage
-    const { data: fileData, error: fileError } = await supabaseAdmin.storage
+    // Return signed URL instead of streaming (avoids memory limits)
+    const { data: signedData, error: signedError } = await supabaseAdmin.storage
       .from("configs")
-      .download("client/hades.dll");
+      .createSignedUrl("client/hades.dll", 300);
 
-    if (fileError || !fileData) {
+    if (signedError || !signedData?.signedUrl) {
       return new Response(JSON.stringify({ error: "Client file not found" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(fileData, {
+    return new Response(JSON.stringify({ url: signedData.signedUrl }), {
       status: 200,
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/octet-stream",
-        "Content-Disposition": "attachment; filename=hades.dll",
-      },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (_err) {
     return new Response(JSON.stringify({ error: "Internal server error" }), {

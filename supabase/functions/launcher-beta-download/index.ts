@@ -25,7 +25,6 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    // Verify user is authenticated
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
       return new Response(JSON.stringify({ error: "Invalid token" }), {
@@ -34,30 +33,26 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Download the injector from storage (no subscription required)
+    // Generate a signed URL instead of streaming the file (avoids memory limits)
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { data: fileData, error: fileError } = await supabaseAdmin.storage
+    const { data: signedData, error: signedError } = await supabaseAdmin.storage
       .from("configs")
-      .download("client/injector.exe");
+      .createSignedUrl("client/injector.exe", 300); // 5 min expiry
 
-    if (fileError || !fileData) {
+    if (signedError || !signedData?.signedUrl) {
       return new Response(JSON.stringify({ error: "Injector file not found" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(fileData, {
+    return new Response(JSON.stringify({ url: signedData.signedUrl }), {
       status: 200,
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/octet-stream",
-        "Content-Disposition": "attachment; filename=injector.exe",
-      },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (_err) {
     return new Response(JSON.stringify({ error: "Internal server error" }), {
