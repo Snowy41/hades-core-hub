@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Check, Star, Clock, Play, Shield, Zap, Ghost, Crosshair, ArrowRight, Download as DownloadIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,20 @@ const Download = () => {
   const { toast } = useToast();
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [betaLoading, setBetaLoading] = useState(false);
+  const [showcaseImages, setShowcaseImages] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    supabase
+      .from("site_settings")
+      .select("value")
+      .eq("key", "preview_images")
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.value && typeof data.value === "object") {
+          setShowcaseImages(data.value as Record<string, string>);
+        }
+      });
+  }, []);
 
   const handleSubscribe = async () => {
     if (!user || !session) {
@@ -59,18 +73,17 @@ const Download = () => {
     }
     setBetaLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("launcher-beta-download");
-      if (error) throw error;
-      if (data instanceof Blob) {
-        const url = URL.createObjectURL(data);
+      const response = await supabase.functions.invoke("launcher-beta-download");
+      if (response.error) throw response.error;
+      const result = response.data;
+      if (result?.url) {
         const a = document.createElement("a");
-        a.href = url;
+        a.href = result.url;
         a.download = "injector.exe";
         a.click();
-        URL.revokeObjectURL(url);
         toast({ title: "Download started!" });
       } else {
-        throw new Error("Download failed");
+        throw new Error("Download failed — no URL returned");
       }
     } catch (err: any) {
       toast({ title: "Download failed", description: err.message, variant: "destructive" });
@@ -217,18 +230,25 @@ const Download = () => {
               <p className="text-muted-foreground">Watch Hades dominate on every server.</p>
             </motion.div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl mx-auto">
-              {["PvP Highlights", "Bypass Demo"].map((title) => (
+              {[
+                { title: "PvP Highlights", key: "showcase_1" },
+                { title: "Bypass Demo", key: "showcase_2" },
+              ].map((item) => (
                 <motion.div
-                  key={title}
+                  key={item.title}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
-                  className="glass rounded-xl aspect-video flex items-center justify-center group cursor-pointer hover:border-primary/30 transition-all"
+                  className="glass rounded-xl aspect-video flex items-center justify-center group cursor-pointer hover:border-primary/30 transition-all overflow-hidden"
                 >
-                  <div className="text-center">
-                    <Play className="h-10 w-10 text-primary mx-auto mb-2 group-hover:scale-110 transition-transform" />
-                    <span className="text-sm text-muted-foreground">{title}</span>
-                  </div>
+                  {showcaseImages[item.key] ? (
+                    <img src={showcaseImages[item.key]} alt={item.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="text-center">
+                      <Play className="h-10 w-10 text-primary mx-auto mb-2 group-hover:scale-110 transition-transform" />
+                      <span className="text-sm text-muted-foreground">{item.title}</span>
+                    </div>
+                  )}
                 </motion.div>
               ))}
             </div>
