@@ -194,6 +194,30 @@ export type Database = {
         }
         Relationships: []
       }
+      download_tokens: {
+        Row: {
+          created_at: string
+          id: string
+          token: string
+          used: boolean
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          token: string
+          used?: boolean
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          token?: string
+          used?: boolean
+          user_id?: string
+        }
+        Relationships: []
+      }
       invite_keys: {
         Row: {
           created_at: string
@@ -406,6 +430,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_download_tokens: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
