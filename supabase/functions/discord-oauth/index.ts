@@ -7,6 +7,31 @@ const corsHeaders = {
 
 const DISCORD_API = "https://discord.com/api/v10";
 
+// HMAC-sign the OAuth state to prevent tampering (user_id spoofing)
+async function signState(payload: string, secret: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
+  const sigHex = [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  return sigHex;
+}
+
+async function verifyState(payload: string, signature: string, secret: string): Promise<boolean> {
+  const expected = await signState(payload, secret);
+  // Constant-time comparison
+  if (expected.length !== signature.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < expected.length; i++) {
+    mismatch |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
+  }
+  return mismatch === 0;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -15,6 +40,7 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
   const DISCORD_CLIENT_ID = Deno.env.get("DISCORD_CLIENT_ID");
   const DISCORD_CLIENT_SECRET = Deno.env.get("DISCORD_CLIENT_SECRET");
+  const HMAC_SECRET = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!; // Reuse as HMAC key
 
   if (!DISCORD_CLIENT_ID || !DISCORD_CLIENT_SECRET) {
     return new Response(JSON.stringify({ error: "Discord OAuth not configured" }), {
@@ -50,14 +76,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    const userId = user.id; // Use verified user id, ignore query param
+    const userId = user.id;
     const rawRedirect = url.searchParams.get("redirect") || "/";
-    // Only allow relative URLs to prevent open redirect
     const redirect = rawRedirect.startsWith("/") ? rawRedirect : "/";
 
-    // Build the Discord authorization URL
+    // Build signed state (prevents user_id spoofing on callback)
+    const statePayload = JSON.stringify({ user_id: userId, redirect, ts: Date.now() });
+    const stateB64 = btoa(statePayload);
+    const sig = await signState(stateB64, HMAC_SECRET);
+    const state = `${stateB64}.${sig}`;
+
     const functionUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/discord-oauth`;
-    const state = btoa(JSON.stringify({ user_id: userId, redirect }));
     const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(functionUrl)}&response_type=code&scope=identify&state=${encodeURIComponent(state)}`;
 
     return new Response(null, {
@@ -71,10 +100,21 @@ Deno.serve(async (req) => {
     const stateParam = url.searchParams.get("state");
     if (!stateParam) throw new Error("Missing state");
 
-    const { user_id, redirect } = JSON.parse(atob(stateParam));
+    // Verify HMAC signature on state
+    const dotIdx = stateParam.lastIndexOf(".");
+    if (dotIdx === -1) throw new Error("Invalid state format");
+    const stateB64 = stateParam.substring(0, dotIdx);
+    const stateSig = stateParam.substring(dotIdx + 1);
+
+    const valid = await verifyState(stateB64, stateSig, HMAC_SECRET);
+    if (!valid) throw new Error("State signature verification failed");
+
+    const { user_id, redirect, ts } = JSON.parse(atob(stateB64));
     if (!user_id) throw new Error("Missing user_id in state");
 
-    // Validate redirect from state as well
+    // Reject states older than 10 minutes
+    if (Date.now() - ts > 10 * 60 * 1000) throw new Error("State expired");
+
     const safeRedirect = (typeof redirect === "string" && redirect.startsWith("/")) ? redirect : "/profile";
 
     const functionUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/discord-oauth`;
@@ -120,7 +160,6 @@ Deno.serve(async (req) => {
 
     if (error) throw new Error("Failed to save Discord info");
 
-    // Redirect back to profile page with success
     return new Response(null, {
       status: 302,
       headers: { Location: `${safeRedirect}?discord=linked` },
@@ -131,9 +170,12 @@ Deno.serve(async (req) => {
     let redirect = "/profile";
     try {
       if (stateParam) {
-        const parsed = JSON.parse(atob(stateParam));
-        const r = parsed.redirect;
-        redirect = (typeof r === "string" && r.startsWith("/")) ? r : "/profile";
+        const dotIdx = stateParam.lastIndexOf(".");
+        if (dotIdx > 0) {
+          const parsed = JSON.parse(atob(stateParam.substring(0, dotIdx)));
+          const r = parsed.redirect;
+          redirect = (typeof r === "string" && r.startsWith("/")) ? r : "/profile";
+        }
       }
     } catch {}
 

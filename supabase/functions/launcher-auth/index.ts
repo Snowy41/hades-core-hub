@@ -43,6 +43,27 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Check if user is banned
+    const supabaseAdmin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("banned_at")
+      .eq("user_id", data.user.id)
+      .single();
+
+    if (profile?.banned_at) {
+      // Sign the user out so the token can't be reused
+      await supabase.auth.signOut();
+      return new Response(JSON.stringify({ error: "Account banned" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({
       access_token: data.session.access_token,
       user_id: data.user.id,
