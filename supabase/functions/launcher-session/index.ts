@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
     });
 
   try {
-    const { action } = await req.json().catch(() => ({ action: undefined }));
+    const { action, config_id } = await req.json().catch(() => ({ action: undefined, config_id: undefined }));
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -81,35 +81,32 @@ Deno.serve(async (req) => {
       return json({ token, expires_in: 86400 });
     }
 
-    // ─── ACTION: connect ─────────────────────────────────────────────
-    // Called by the DLL with X-Session-Token header.
-    // Returns full user profile data (same shape as launcher-profile).
-    if (action === "connect") {
+    // ── Helper: validate session token ───────────────────────────────
+    const validateSessionToken = async () => {
       const sessionToken = req.headers.get("X-Session-Token");
-      if (!sessionToken) {
-        return json({ error: "Missing session token" }, 401);
-      }
+      if (!sessionToken) return { error: "Missing session token", status: 401 };
 
-      // Validate token
       const { data: tokenRow, error: tokenError } = await supabaseAdmin
         .from("session_tokens")
         .select("user_id, expires_at, revoked")
         .eq("token", sessionToken)
         .single();
 
-      if (tokenError || !tokenRow) {
-        return json({ error: "Invalid session token" }, 401);
-      }
+      if (tokenError || !tokenRow) return { error: "Invalid session token", status: 401 };
+      if (tokenRow.revoked) return { error: "Session token revoked", status: 401 };
+      if (new Date(tokenRow.expires_at) < new Date()) return { error: "Session token expired", status: 401 };
 
-      if (tokenRow.revoked) {
-        return json({ error: "Session token revoked" }, 401);
-      }
+      return { userId: tokenRow.user_id, token: sessionToken };
+    };
 
-      if (new Date(tokenRow.expires_at) < new Date()) {
-        return json({ error: "Session token expired" }, 401);
-      }
-
-      const userId = tokenRow.user_id;
+    // ─── ACTION: connect ─────────────────────────────────────────────
+    // Called by the DLL with X-Session-Token header.
+    // Returns full user profile data (same shape as launcher-profile).
+    // Does NOT expose internal fields like file_path.
+    if (action === "connect") {
+      const validation = await validateSessionToken();
+      if ("error" in validation) return json({ error: validation.error }, validation.status);
+      const { userId, token: sessionToken } = validation;
 
       // Fetch profile
       const { data: profile } = await supabaseAdmin
@@ -122,7 +119,6 @@ Deno.serve(async (req) => {
 
       if (!profile) return json({ error: "Profile not found" }, 404);
       if (profile.banned_at) {
-        // Revoke token on ban
         await supabaseAdmin
           .from("session_tokens")
           .update({ revoked: true })
@@ -146,9 +142,7 @@ Deno.serve(async (req) => {
             .eq("user_id", userId),
           supabaseAdmin
             .from("configs")
-            .select(
-              "id, name, description, category, file_path, is_official, downloads, rating"
-            )
+            .select("id, name, description, category, is_official, downloads, rating")
             .eq("user_id", userId),
           supabaseAdmin
             .from("user_badges")
@@ -165,7 +159,7 @@ Deno.serve(async (req) => {
           ? { active: true, expires: subRes.data.current_period_end }
           : { active: false };
 
-      // Merge own + purchased configs
+      // Merge own + purchased configs (without file_path)
       const purchasedIds = (purchasesRes.data || []).map(
         (p: any) => p.config_id
       );
@@ -175,9 +169,7 @@ Deno.serve(async (req) => {
       if (purchasedIds.length > 0) {
         const { data } = await supabaseAdmin
           .from("configs")
-          .select(
-            "id, name, description, category, file_path, is_official, downloads, rating"
-          )
+          .select("id, name, description, category, is_official, downloads, rating")
           .in("id", purchasedIds);
         purchasedConfigs = data || [];
       }
@@ -203,6 +195,53 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ─── ACTION: download_config ─────────────────────────────────────
+    // Called by the DLL to download a config via session token.
+    // Returns a signed URL for the config file.
+    if (action === "download_config") {
+      const validation = await validateSessionToken();
+      if ("error" in validation) return json({ error: validation.error }, validation.status);
+      const { userId } = validation;
+
+      if (!config_id || typeof config_id !== "string") {
+        return json({ error: "config_id required" }, 400);
+      }
+
+      // Validate UUID format
+      const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!UUID_REGEX.test(config_id)) {
+        return json({ error: "Invalid config_id" }, 400);
+      }
+
+      // Check ownership or purchase
+      const [configRes, purchaseRes] = await Promise.all([
+        supabaseAdmin.from("configs").select("id, user_id, file_path, name").eq("id", config_id).single(),
+        supabaseAdmin.from("config_purchases").select("id").eq("user_id", userId).eq("config_id", config_id).maybeSingle(),
+      ]);
+
+      const config = configRes.data;
+      if (!config) return json({ error: "Config not found" }, 404);
+
+      const isOwner = config.user_id === userId;
+      if (!purchaseRes.data && !isOwner) {
+        return json({ error: "Not purchased" }, 403);
+      }
+
+      if (!config.file_path) {
+        return json({ error: "No file available" }, 404);
+      }
+
+      const { data: signedData, error: signedError } = await supabaseAdmin.storage
+        .from("configs")
+        .createSignedUrl(config.file_path, 300);
+
+      if (signedError || !signedData?.signedUrl) {
+        return json({ error: "File download failed" }, 500);
+      }
+
+      return json({ url: signedData.signedUrl, filename: config.name });
+    }
+
     // ─── ACTION: revoke ──────────────────────────────────────────────
     // Called by the launcher to invalidate the session (e.g. on logout).
     if (action === "revoke") {
@@ -217,7 +256,22 @@ Deno.serve(async (req) => {
       return json({ success: true });
     }
 
-    return json({ error: "Invalid action. Use: create, connect, revoke" }, 400);
+    // ─── ACTION: refresh ─────────────────────────────────────────────
+    // Called by the DLL to extend the session by another 24h.
+    if (action === "refresh") {
+      const validation = await validateSessionToken();
+      if ("error" in validation) return json({ error: validation.error }, validation.status);
+
+      const sessionToken = req.headers.get("X-Session-Token")!;
+      await supabaseAdmin
+        .from("session_tokens")
+        .update({ expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() })
+        .eq("token", sessionToken);
+
+      return json({ success: true, expires_in: 86400 });
+    }
+
+    return json({ error: "Invalid action. Use: create, connect, download_config, refresh, revoke" }, 400);
   } catch (_err) {
     return json({ error: "Internal server error" }, 500);
   }
