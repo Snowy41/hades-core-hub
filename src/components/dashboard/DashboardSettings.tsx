@@ -10,20 +10,22 @@ import { toast } from "sonner";
 
 const DashboardSettings = () => {
   const [realtimeStats, setRealtimeStats] = useState(false);
+  const [betaDays, setBetaDays] = useState(30);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase
-      .from("site_settings")
-      .select("value")
-      .eq("key", "realtime_stats")
-      .single()
-      .then(({ data }) => {
-        if (data?.value && typeof data.value === "object" && "enabled" in data.value) {
-          setRealtimeStats((data.value as any).enabled === true);
-        }
-        setLoading(false);
-      });
+    Promise.all([
+      supabase.from("site_settings").select("value").eq("key", "realtime_stats").single(),
+      supabase.from("site_settings").select("value").eq("key", "beta_duration_days").single(),
+    ]).then(([statsRes, betaRes]) => {
+      if (statsRes.data?.value && typeof statsRes.data.value === "object" && "enabled" in statsRes.data.value) {
+        setRealtimeStats((statsRes.data.value as any).enabled === true);
+      }
+      if (betaRes.data?.value && typeof betaRes.data.value === "object" && "days" in betaRes.data.value) {
+        setBetaDays((betaRes.data.value as any).days);
+      }
+      setLoading(false);
+    });
   }, []);
 
   const toggleRealtimeStats = async (enabled: boolean) => {
